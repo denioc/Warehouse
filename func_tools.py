@@ -3,6 +3,7 @@
 """
 # pip install openpyxl
 
+#import numpy
 from openpyxl import Workbook, workbook		# Для создания новой таблицы
 from openpyxl import load_workbook	# Для чтения талицы
 from openpyxl.styles import Font, Alignment, PatternFill, Color
@@ -15,6 +16,9 @@ from openpyxl.utils.cell import column_index_from_string
 from kivy.utils import get_color_from_hex
 from openpyxl.styles.colors import ColorList
 from openpyxl.xml.constants import *
+import pandas
+from pandas.core.frame import DataFrame
+from openpyxl.utils.dataframe import dataframe_to_rows
 
 
 """
@@ -251,11 +255,14 @@ class Excel:
 		for num in range(start, stop+step, step):
 			yield num
 			
-	def clear_sheet(sheet):
-		# Очищает весь лист построчно вместе с размерами и цветами строк. Настройки столбцов не меняются
+	def clear_sheet(sheet, del_formatting=True):
+		# Очищает весь лист построчно вместе с размерами и цветами строк. 
+		# Настройки столбцов не меняются
+		# del_formatting: True - очищается форматирование; False - форматирование остается
 		# delete_rows(start_row, count_rows)
 		sheet.delete_rows(1, sheet.max_row)	# Удаляет все строки, форматиррвание остается
-		sheet.row_dimensions.clear()	# удаляет настройки строк
+		if del_formatting:
+			sheet.row_dimensions.clear()	# удаляет настройки строк
 
 	def create_template(sheet):
 		# Функция создает шаблон таблицы результата
@@ -282,15 +289,15 @@ class Excel:
 	COLORS_theme = {} # Словарь хранит сконвертированные значения цветов {theme&tint: rgba} (тип theme).
 	
 	def _argb_to_rgba(argb):
-			# Функция переводит цвет формата argb в формат rgba.
-			# Чтобы не конвертировать цвет каждый раз используется словарь COLORS 
-			# с сохраненными отконвертированными значениями
-			if argb in Excel.COLORS_rgb:
-				color = Excel.COLORS_rgb[argb]
-			else:
-				color = get_color_from_hex(argb[2:] + argb[:2])
-				Excel.COLORS_rgb.update({argb: color})
-			return color
+		# Функция переводит цвет формата argb в формат rgba.
+		# Чтобы не конвертировать цвет каждый раз используется словарь COLORS 
+		# с сохраненными отконвертированными значениями
+		if argb in Excel.COLORS_rgb:
+			color = Excel.COLORS_rgb[argb]
+		else:
+			color = get_color_from_hex(argb[2:] + argb[:2])
+			Excel.COLORS_rgb.update({argb: color})
+		return color
 
 	def _theme_to_rgba(workbook, theme, tint):
 		# Конвертируем theme&tint в rgba
@@ -367,7 +374,7 @@ class Excel:
 		return width
 
 	def get_row_height(sheet):
-		# Функция возвращает словарь с номером и шириной столбца {0: width}. Номера начинаются с 0.
+		# Функция возвращает словарь с номером и высотой строки {0: width}. Номера начинаются с 0.
 		height = {}
 		for row in sheet.row_dimensions.items():
 			if row[1].height:
@@ -426,6 +433,166 @@ class Excel:
 		table_data = [c.value for r in sheet[data_range] for c in r]
 		widget.data = [{'text': str(data) if data!=None else "", 'background_color': table_color, 'focus': False} for data in table_data]
 
+# class ScladItem():
+# 	type = ''
+# 	mount_style = ''
+# 	code = ''
+# 	order_code = ''
+# 	analog = ''
+# 	count = 0
+# 	description = ''
+# 	comment = ''
+# 	manufacturer = ''
+# 	price = ''
+# 	date = ''
+
+
+def create_sclad(main_table='', devs=[], specs={}):
+	""" Берет списки комплектующих устройств и добавляет позиции на склад, 
+	если они туда еще не добавлены
+	main_table - путь к файлу склада в формате 'folder\path\file_name.xlsx:sheet_name'
+	devs - список устройств, со спецификаций которых добавляются позиции на склад
+	specs - словарь оссоциации устройства и файла со спецификацией формата:
+	specs = {'dev1': 'folder\path\file_name.xlsx:sheet_name'}"""
+	# #import pandas
+	# from openpyxl.utils.dataframe import dataframe_to_rows
+	# import numpy
+	# t1 = pandas.DataFrame({'A':[0, 1, 2, 3], 'B':['a', 'b', 'c', 'd'], 
+	# 	'C':['0', '1', '2', '3']})
+	# print(t1)
+	# print('-----------')
+	# t2 = pandas.DataFrame({'A':[4, 5, 2, 3, 6, 7], 'B':['a', 'b', 'c', 'd', 'e', 'f'], 
+	# 	'D':[12, 23, 34, 45, 56, 67]})
+	# print(t2)
+	# print('-----------')
+	# repl = {'A1': pandas.Series(['a', 'A', 'AA']), 
+	# 		'B1': pandas.Series(['b', 'B'])}
+	# rt = pandas.DataFrame(repl)
+	# print(rt)
+	#t2.columns = t2.columns[rt.isin(t2.columns)]
+	#print(t2.columns)
+	# # print(t2['A'][t2['A']>5])
+	# # Получаем список ненужных столбцов
+	# ic = ['A', 'B', 'C']
+	# print(t2.columns)
+	# dc = t2.columns[~t2.columns.isin(ic)]
+	# print(dc)
+	# # Удаляем ненужные столбцы
+	# t2 = t2.drop(columns=dc)
+	# print(t2)
+	# print("--------")
+	# t3 = t2[~t2['A'].isin(t1['A'])]
+	# print(t3)
+	# print('----------')
+	# t4 = t1.append(t3, ignore_index=True)
+	# print(t4)
+	# wb = Workbook()
+	# ws = wb.active
+	# for r in dataframe_to_rows(t4, index=False, header=True):
+	# 	ws.append(r)
+	# print(ws.values)
+	# wb.save('res.xlsx')
+	if not main_table or not devs or not specs:
+		print("[ERROR]: Нет входных данных!")
+		return
+	table_xl, table_sh = main_table.split(':')
+	#print(table_xl, table_sh)
+	sclad_wb = Excel.open_book(table_xl)
+	sclad_sh = sclad_wb[table_sh]
+	df = pandas.DataFrame(sclad_sh.values)
+	sclad = get_spec(df)
+	#print(sclad['Order Code'])
+	print(type(sclad))
+	if len(sclad) == 0:
+		print(f"[Error]: Ошибка обработки {sclad_sh}!")
+		return
+	# Список с названиями интересующих нас столбцов:
+	interest_cols = sclad.columns
+	#interest_cols = ['Type', 'MountStyle', 'Code', 'Order Code', 'Analog', 'Count', 
+	#	'Price', 'Date', 'Manufacturer', 'Package', 'Description', 'Comment']
+	replacement_names = { 'Order Code': ['OrderCode', 'Order_Code'],
+		'Type': ['Класс', 'Class', 'class', 'класс'], 
+		'MountStyle': ['Column=MountStyle', 'Mount Style'],
+		'Description': ['Column=Description'],
+		'Comment': ['Column=Comment'],
+		'Supplier': ['Supplier 1']}
+	unprocessed = []
+	fails = 0
+	pas = 0
+	for dev in devs:
+		path = specs.get(dev, 'None')
+		if path != 'None':
+			xl, sh = path.split(':')
+			sheet = Excel.open_book(xl)[sh]
+			df = pandas.DataFrame(sheet.values)
+			tbl = get_spec(df, replacement_names)	# Получаем таблицу спецификации
+			# Проверяем валидность таблицы
+			if len(tbl) == 0:
+				print(f"[Error]: {dev} не обработан!")
+				fails += 1
+				continue
+			print(f"[PASS]: {dev} обработан")
+			# Получаем таблицу с позициями, которые отсутствуют в таблице склада
+			merge_tbl = tbl[~tbl['Order Code'].isin(sclad['Order Code'])]
+			# Получаем список ненужных столбцов
+			delcol = merge_tbl.columns[~merge_tbl.columns.isin(interest_cols)]
+			# Удаляем ненужные столбцы
+			merge_tbl = merge_tbl.drop(columns=delcol)
+			# Сливаем таблицы, без индексов, с названиями столбцов
+			sclad = sclad.append(merge_tbl, ignore_index=True)
+			pas +=1
+		else: 
+			unprocessed.append(dev)
+			fails += 1
+			print(f"[Error]: {dev} не обработан!")
+	print(f"Обработка завершена: PASS: {pas}; FAILS: {fails}; Всего: {len(devs)})")
+	# Сохраняем резултат
+	#wb = Excel.open_book('res.xlsx')
+	#ws = wb['Sheet']
+	#row_dim = ws.row_dimensions
+	Excel.clear_sheet(sclad_sh) #, del_formatting=False)
+	for r in dataframe_to_rows(sclad, index=False, header=True):
+		sclad_sh.append(r)
+	#ws.row_dimensions = row_dim
+	#sclad_wb.save('res.xlsx')
+	sclad_wb.save(table_xl)
+	print("Таблица сохранена.")
+
+def get_spec(table, replacement_names={}):
+	""" Находит и возвращает таблицу спецификации.  
+	Индексирует названия столбцов из таблицы, чтобы по ним было проще выбирать данные.
+	table - таблица в формате DataFrame
+	replacement_names - ключи для замены имен столбцов с неправильных на правильные:
+	replacement_names = {pass_name: [fail_Name1, fail_name2, ...]}"""
+	#print(table.shape)	# Получить число строк и колонок
+	tbl = pandas.DataFrame()
+	for r, row in table.iterrows():
+		if 'Order Code' in row.values:
+			# Находим строку с названиями столбцов
+			table.columns = list(row)	# Присваиваем названия столбцов из таблицы
+			tbl = table.iloc[r+1:]	# Отсекаем первые строки с ненужной информацией
+			break
+	# Форматируем словарь соответствия имен столбцов таблицы для переименования
+	repl_name = {}
+	for pn in replacement_names.keys():
+		repl_name.update(dict.fromkeys(replacement_names[pn], pn))
+	# Переименовываем столбцы на правильные названия по словарю соответствия
+	tbl = tbl.rename(columns = repl_name)
+	return tbl
+
+# def create_parts_list(devs=[], specs={}):
+# 	""" Создает общий список комплектующих для устройств devs.
+# 	Спецификация берется из словаря specs, где ключ - название изделя, значение - таблица спецификации
+# 	devs - list type
+# 	specs - dict type"""
+# 	unaccounted = []
+# 	for dev in devs:
+# 		sp = specs.get(dev)
+# 		if sp:
+# 			print(sp)
+# 		else: 
+# 			unaccounted.append(dev)
+# 	print(unaccounted)
 
 def podschet():
 	"""
@@ -1052,11 +1219,27 @@ def sortirovka_v_zacupku():
 	Excel.Quit()
 
 if __name__ == '__main__':
-	from openpyxl.utils.cell import cols_from_range
-	from openpyxl.utils.cell import column_index_from_string
+	import configparser
+	config = configparser.ConfigParser()
+	config.optionxform = str	# Отключаем анализ файлов Windows INI, чтобы не менялся регистр для ключей
+	config.read("bindings.ini")
+	main_table = config['files']['main_xls']
+	#main_table_xl, main_table_sh = main_table.split(':')
+	#print(main_table)
+	#print(main_table_xl, main_table_sh)
+	devs_list_str = config['general']['devs_list']
+	devs_list = devs_list_str.split(', ')	#[type: list] Получили список устройств для обработки
+	#print(devs_list)
+	binders = dict(config.items('binders'))
+	#print(binders)
+	create_sclad(main_table = main_table, devs = devs_list, specs = binders)
+
+
+	#from openpyxl.utils.cell import cols_from_range
+	#from openpyxl.utils.cell import column_index_from_string
 	#podschet()
-	wb = Excel.open_book(u'Общий.xlsx')
-	ws = wb['Итог'] #['SPR4-03']
+	#wb = Excel.open_book(u'Общий.xlsx')
+	#ws = wb['Итог'] #['SPR4-03']
 	# Одна единица ширины столбца равна ширине одного символа в стиле Normal. 
 	# Для пропорциональных шрифтов используется ширина символа 0 (ноль).
 	# Вычитанная ширина столбца 'B' = 22.7109375. В Excel показывает ширину 22 едениц и 159 пикселя (в пикселях верно)
@@ -1064,14 +1247,14 @@ if __name__ == '__main__':
 	#  ws.column_dimensions['B'].font.sz = 11.0	(Для колонки 'A' тоже 11)
 	#cd = {0: 184, 1: 159, 2: 123, 3: 94, 4: 143, 5: 80, 6: 116, 7: 79, 8: 64, 9: 71} # Правильные значения в пикселях
 	#print(wb.loaded_theme)
-	print(dir(ws))
-	cd0 = {Excel._ord_col_name(k[0])-1: k[1].width for k in ws.column_dimensions.items()}
+	#print(dir(ws))
+	#cd0 = {Excel._ord_col_name(k[0])-1: k[1].width for k in ws.column_dimensions.items()}
 	#print("items =", cd0)
-	print("width =", ws.column_dimensions['B'].width)
+	#print("width =", ws.column_dimensions['B'].width)
 	#print("font", ws.column_dimensions['B'].font)
 	# ws.conditional_formatting
-	print("other", ws.column_dimensions['B'].font)
-	print("+++++++++++")
+	#print("other", ws.column_dimensions['B'].font)
+	#print("+++++++++++")
 	#cr = [col for col in cols_from_range("A1:F5")]
-	cr = column_index_from_string('A')
-	print("column_range:", cr)
+	#cr = column_index_from_string('A')
+	#print("column_range:", cr)

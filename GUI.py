@@ -252,6 +252,7 @@ from kivy.uix.settings import SettingItem
 from kivy.uix.settings import SettingTitle, SettingNumeric
 from kivy.compat import string_types, text_type
 from kivymd.uix.textfield import MDTextField
+from kivymd.uix.label import MDLabel
 
 class mySettingNumeric(SettingNumeric):
 	def __init__(self, **kwargs):
@@ -266,13 +267,59 @@ class mySettingTitle(SettingTitle):
 		super().__init__(**kwargs)
 		self.color = (0,0,0,1) # Работает
 		#print(dir(self.title))
-		#print(self.title)
+		print(self.size, self.size_hint)
 		#print(self.color)
-		
-class SettingItemNumeric(SettingItem, MDTextField):
+
+# class mySettingItem(SettingItem):
+# 	def on_touch_down(self, touch):
+# 		print("Touch content")
+# 		# if self.collide_point(*touch.pos):
+# 		# 	print("Touch content_Collide")
+# 		# 	#super().on_touch_down(touch)
+# 		# 	return super().on_touch_down(touch) """
+# 		if not self.collide_point(*touch.pos):
+# 			return
+# 		if self.disabled:
+# 			return
+# 		print("Touch content_Collide")
+# 		touch.grab(self)
+# 		self.selected_alpha = 1
+# 		return super().on_touch_down(touch)
+# 		#super().on_touch_down(touch)
+# 		#return True
+
+# 	def on_touch_up(self, touch):
+# 		#return super().on_touch_down(touch)
+# 		if touch.grab_current is self:
+# 			touch.ungrab(self)
+# 			self.dispatch('on_release')
+# 			#print("Ungrab")
+# 			Animation(selected_alpha=0, d=.25, t='out_quad').start(self)
+# 			return True
+# 		return super().on_touch_up(touch)
+
+class SetupTitle(MDLabel):
+	title = StringProperty('<No title set>')
+	panel = ObjectProperty(None)
+	def __init__(self, **kwargs):
+		self.halign = 'center'
+		self.size_hint = (1, None)
+		self.height = '35dp'
+		self.md_bg_color = (0.8, 0.8, 0.9, 1)
+		super().__init__(**kwargs)
+		self.text = self.title
+		#print(self.size, self.size_hint)
+
+class SetupString(SettingItem, MDTextField):
 	def __init__(self, **kwargs):
 		self.use_bubble = False
+		#self.height = '50dp'
 		super().__init__(**kwargs)
+		print(self.size, self.size_hint)
+		print(self.size_hint_max)
+		#self.size_hint_y = 1
+		#self.height = '50dp'
+		#print(dir(self))
 		self.hint_text = self.title
 		self.helper_text = self.desc
 		self.text = self.value
@@ -283,10 +330,28 @@ class SettingItemNumeric(SettingItem, MDTextField):
 		self.current_hint_text_color = (0,0,0,1) # !только до kivymd v1.0.0
 		#self.color_mode = 'accent' #'primary', ‘accent’, ‘custom’
 		self.bind(focus=self._validate)
+		#print(self.__events__)
 
-	def _validate(self, instance, value):
-		# Функция сохраняет измененные значения когда снимается фокус
-		if value:
+	def _validate(self, instance, focus=None):
+		# Функция применяет измененные значения когда снимается фокус или при нажатии Enter
+		if focus:
+			return
+		self.value = self.text
+		print(self.value, self.font_size)
+		print("valid:", self.size, self.size_hint)
+		
+class SetupNumeric(SetupString):
+	def __init__(self, **kwargs):
+		super().__init__(**kwargs)
+		#print(dir(self))
+		
+	def on_text(self, instance, value):
+		# Если текст полностью не численный, применяется режим ошибки
+		instance.error = not value.isnumeric()
+
+	def _validate(self, instance, focus=None):
+		# Функция применяет измененные значения когда снимается фокус или при нажатии Enter
+		if focus or instance.error:
 			return
 		is_float = '.' in str(self.value)
 		try:
@@ -297,6 +362,11 @@ class SettingItemNumeric(SettingItem, MDTextField):
 		except ValueError:
 			return
 
+class SetupPath(SettingItem, MDTextField):
+	def __init__(self, *args, **kwargs):
+		self.bubble = False
+		super().__init__(*args, **kwargs)
+		self.text = self.value
 
 class AppSettings(Settings):
 	def __init__(self, *args, **kwargs):
@@ -304,18 +374,26 @@ class AppSettings(Settings):
 		super().__init__(*args, **kwargs)
 		#self._types = {}
 		#self.add_interface()
-		#self.register_type('string', SettingString)
+		self.register_type('string', SetupString)
 		#self.register_type('bool', SettingBoolean)
-		self.register_type('numeric', SettingItemNumeric)
+		self.register_type('numeric', SetupNumeric)
 		#self.register_type('options', SettingOptions)
-		#self.register_type('title', SettingTitle)
-		#self.register_type('path', SettingPath)
+		#self.register_type('title', mySettingTitle)
+		self.register_type('title', SetupTitle)
+		#self.register_type('path', SetupPath)
 		#self.register_type('color', SettingColor)
 		#self._types[tp] = cls
-		self.register_type('title', mySettingTitle)
 
 		self.bind(parent=self.on_open)
 		#print(dir(self))
+
+	# def on_touch_down(self, touch):
+	# 	#super(Settings, self).on_touch_down(touch)
+	# 	if self.collide_point(*touch.pos):
+	# 		print("Collide", touch.grab_current)
+	# 		#super().on_touch_down(touch)
+	# 		return super().on_touch_down(touch)
+	# 		return True
 		
 	def add_json_panel(self, title, config, filename=None, data=None, icon=None):
 		'''Переопределенная функция из Settings. 
@@ -387,14 +465,7 @@ class SettingInterface(MDBackdrop):
 			[icon_setup2, lambda x: self.parent.dispatch('on_close')]]
 		back_layer = MDBackdropBackLayer()
 		front_layer = MDBackdropFrontLayer()
-		#print(dir(front_layer))
-		#print(front_layer)
-		#with front_layer.canvas:
-		#	Color(1,0,0,1)
-		#front_layer.opacity = 0
 		self.menu = SettingMenu(self)
-		#self.menu.size_hint = (0.5, 1)
-		#self.menu.width = 300
 		self.content = ContentPanel()
 		#self.content = SettingContent()
 		back_layer.add_widget(self.menu)
@@ -481,17 +552,19 @@ class SettingMenu(MDBoxLayout):
 	def select_panel(self, instance):
 		self.selected_uid = instance.uid
 		self.root.open()
+
+	# def on_touch_down(self, touch):
+	# 	print("Touch menu")
+	# 	if self.collide_point(*touch.pos):
+	# 		print("Touch menu_Collide")
+	# 		#super().on_touch_down(touch)
+	# 		return super().on_touch_down(touch)
 		
 class SettingMenuItem(OneLineIconListItem):
 	"""Создание виджета для отображения отдельного пункта в меню"""
 	uid = NumericProperty(0)
 	def __init__(self, icon=None, **kwargs):
 		iwid = IconLeftWidget()
-		#iwid = IconLeftWidgetWithoutTouch() # in version 1.0.0
-		#iwid.size = (50, 50)
-		#iwid.padding = (100,100, 100, 100)
-		#iwid.anchor_x = 'left'
-		#iwid.children[0].halign = 'left'
 		if icon:
 			iwid.icon = icon
 		super().__init__(**kwargs)
@@ -507,6 +580,12 @@ class SettingMenuItem(OneLineIconListItem):
 		#print(self.pos_hint, self.pos)
 		#print(iwid.anchor_x)
 		#print(dir(self))
+
+	def on_touch_down(self, touch):
+		# Чтобы при нажатии на SettingItem из панели настроек 
+		# не нажималась MenuItem и панель настроек (content) не закрывалась
+		if self.collide_point(*touch.pos) and not touch.grab_state:
+			return super().on_touch_down(touch)
 
 
 # class SettingsPanel(MDGridLayout):
